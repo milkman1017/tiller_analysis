@@ -1,4 +1,6 @@
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg')  # Use the non-graphical Agg backend
 import matplotlib.pyplot as plt
 
 def process_csv(filepath, skip_rows=14):
@@ -39,6 +41,34 @@ def process_csv(filepath, skip_rows=14):
     df = df.dropna()
 
     return df
+
+def process_weather_data(df):
+
+    # Load the CSV
+
+    site_map = {"CF": "Coldfood", "SG": "Sagwon"}
+
+    df['site'] = df['site'].map(site_map)
+
+    # Split timestamp into year, day of year (doy), and time
+    df['ts'] = pd.to_datetime(df['ts'])
+    df['year'] = df['ts'].dt.year
+    df['doy'] = df['ts'].dt.dayofyear
+    df['time'] = df['ts'].dt.time
+
+    # Group by site, year, and day of year
+    grouped = df.groupby(['site', 'year', 'doy'])
+
+    # Calculate daily statistics
+    daily_stats = grouped['temp'].agg(
+        tmin='min',
+        tmax='max',
+        tdiff=lambda x: x.max() - x.min(),
+        tavg='mean'
+    ).reset_index()
+
+    return daily_stats
+
 
 def aggregate_data(data, t_base=10):
     """
@@ -99,8 +129,9 @@ def plot(aggregated_df, weather_df, tussock_label="Tussock", air_max_label="Max 
     # Plot the data
     plt.figure(figsize=(12, 6))
     plt.plot(merged_df['Day_of_Year'], merged_df['Tavg'], label=tussock_label)
-    plt.plot(merged_df['Day_of_Year'], merged_df['tmax (deg c)'], label=air_max_label, linestyle='--')
-    plt.plot(merged_df['Day_of_Year'], merged_df['tmin (deg c)'], label=air_min_label, linestyle=':')
+    plt.plot(merged_df['Day_of_Year'], merged_df['tmax'], label=air_max_label, linestyle='--', linewidth=1)
+    plt.plot(merged_df['Day_of_Year'], merged_df['tmin'], label=air_min_label, linestyle=':', linewidth=1)
+    plt.plot(merged_df['Day_of_Year'],merged_df['tavg'], label='Air avg Temp', linestyle='-.', linewidth=1)
 
     # Customize plot
     plt.title("Temperature Comparison: Tussock vs Air", fontsize=16)
@@ -129,7 +160,9 @@ def main():
     aggregated_ibutton_df = aggregate_data(cleaned_ibutton_data)
 
     print('Loading weather data...')
-    weather_data = pd.read_csv('weather_data_only.csv')
+    weather_data = pd.read_csv('CFetSG_WSdata.csv')
+    weather_data = process_weather_data(weather_data)
+    print(weather_data)
 
     # Filter weather data for the matching year and site
     weather_data = weather_data[weather_data['year'] == year]
