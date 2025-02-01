@@ -34,11 +34,32 @@ def plot_wavelet_transform(df):
         plt.title(f"Wavelet Transform of Temperature Data for {site}")
         plt.show()
 
+def rolling_lagged_correlation(df, lag=24*200, window=24*50):
+    plt.figure(figsize=(12, 6))
+    for site in df["site"].unique():
+        site_df = df[df["site"] == site].reset_index(drop=True)
+        temp_values = site_df["temp"].values
+        rolling_corrs = []
+        times = []
+        for i in range(len(temp_values) - lag - window):
+            corr = np.corrcoef(temp_values[i:i+window], temp_values[i+lag:i+lag+window])[0, 1]
+            rolling_corrs.append(corr)
+            times.append(site_df["ts"].iloc[i])
+        
+        plt.plot(times, rolling_corrs, label=f"{site}")
+    
+    plt.xlabel("Time")
+    plt.ylabel("Rolling Lagged Correlation (200 days)")
+    plt.title("Rolling Lagged Correlation of Temperature Data Across Sites")
+    plt.legend()
+    plt.show()
+
 def main():
     args = parse_args()
     df = load_and_process_data(args.file_path)
     print(df.head())
-    plot_wavelet_transform(df)
+    # plot_wavelet_transform(df)
+    rolling_lagged_correlation(df)
 
 if __name__ == "__main__":
     main()
